@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import authRoutes from './routes/authRoutes.mjs';
 import moderatorRoutes from './routes/moderatorRoutes.mjs';

@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET || 'your-secret';
-
 export const authenticateJWT = (req, res, next) => {
+  const SECRET = process.env.JWT_SECRET || 'secret';
+  
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Token required' });
 
