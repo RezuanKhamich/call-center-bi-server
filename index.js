@@ -12,22 +12,7 @@ import cors from 'cors';
 const app = express();
 const prisma = new PrismaClient();
 // app.use(cors({ origin: 'http://localhost:5173', credentials: false }));
-// app.use(cors({ origin: 'https://call-center-bi-front.onrender.com', credentials: false }));
-
-const allowedOrigins = ['https://call-center-bi-front.onrender.com'];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: false,
-}));
-
-app.options('*', cors());
+app.use(cors({ origin: 'https://call-center-bi-front.onrender.com', credentials: false }));
 
 app.use(express.json());
 
