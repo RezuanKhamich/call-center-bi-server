@@ -30,7 +30,6 @@ router.get('/reports-by-date', async (req, res) => {
     const {
       reporting_period_start_date,
       reporting_period_end_date,
-      agency_type,
     } = req.query;
 
     const where = {};
@@ -45,10 +44,6 @@ router.get('/reports-by-date', async (req, res) => {
       where.reporting_period_end_date = {
         lte: new Date(reporting_period_end_date),
       };
-    }
-
-    if (agency_type) {
-      where.agency_type = agency_type; // exact match (e.g. 'mo', 'minister', etc.)
     }
 
     const reports = await prisma.reports.findMany({
