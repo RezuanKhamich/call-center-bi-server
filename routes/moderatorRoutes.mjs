@@ -1,10 +1,9 @@
 import express from 'express';
 import { authenticateJWT, authorizeRoles } from '../middleware/authMiddleware.mjs';
 import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
-
 const router = express.Router();
-
 router.use(authenticateJWT, authorizeRoles('moderator'));
 
 router.get('/dashboard', (req, res) => {

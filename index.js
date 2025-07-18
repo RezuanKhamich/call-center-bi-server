@@ -5,7 +5,7 @@ import express from 'express';
 import authRoutes from './routes/authRoutes.mjs';
 import moderatorRoutes from './routes/moderatorRoutes.mjs';
 import moRoutes from './routes/moRoutes.mjs';
-import ministrRoutes from './routes/ministrRoutes.mjs';
+import ministerRoutes from './routes/ministerRoutes.mjs';
 import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 
@@ -19,7 +19,7 @@ app.use(express.json());
 app.use('/api', authRoutes);
 app.use('/api/moderator', moderatorRoutes);
 app.use('/api/mo', moRoutes);
-app.use('/api/ministr', ministrRoutes);
+app.use('/api/minister', ministerRoutes);
 
 const allUsers = await prisma.users.findMany();
 console.log('user', allUsers)
