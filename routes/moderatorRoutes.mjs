@@ -144,5 +144,44 @@ router.delete('/delete-reports-by-date', async (req, res) => {
   }
 });
 
+// POST /reports/update-statuses
+router.post('/reports/update-statuses', async (req, res) => {
+  const { updates } = req.body;
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ message: 'Массив обновлений пустой или не передан' });
+  }
+
+  try {
+    // транзакция чтобы все обновления были атомарными
+    const results = await prisma.$transaction(
+      updates.map(item =>
+        prisma.reports.update({
+          where: { id: Number(item.id) },
+          data: {
+            status: item.status,
+            updated_at: new Date(),
+          },
+        })
+      )
+    );
+
+    res.json({
+      message: 'Статусы обновлены',
+      count: results.length,
+      reports: results,
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении статусов:', error);
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Некоторые отчёты не найдены' });
+    }
+
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+
 
 export default router;

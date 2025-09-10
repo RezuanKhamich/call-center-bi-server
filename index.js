@@ -11,8 +11,8 @@ import cors from 'cors';
 
 const app = express();
 const prisma = new PrismaClient();
-// app.use(cors({ origin: 'http://localhost:5173', credentials: false }));
-app.use(cors({ origin: 'https://call-center-bi-front.onrender.com', credentials: false }));
+app.use(cors({ origin: 'http://localhost:5173', credentials: false }));
+// app.use(cors({ origin: 'https://call-center-bi-front.onrender.com', credentials: false }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
