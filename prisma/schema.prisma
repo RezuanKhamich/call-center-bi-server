@@ -6,9 +6,10 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model med_organizations {
   id      Int      @id @default(autoincrement())
-  name    String
+  name    String   @unique
   reports reports[]
 }
 
