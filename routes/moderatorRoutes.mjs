@@ -144,8 +144,8 @@ router.delete('/delete-reports-by-date', async (req, res) => {
   }
 });
 
-// POST /reports/update-statuses
-router.post('/reports/update-statuses', async (req, res) => {
+// POST /reports/update-reports
+router.post('/reports/update-reports', async (req, res) => {
   const { updates } = req.body;
 
   if (!Array.isArray(updates) || updates.length === 0) {
@@ -160,6 +160,8 @@ router.post('/reports/update-statuses', async (req, res) => {
           where: { id: Number(item.id) },
           data: {
             status: item.status,
+            department: item.department,
+            mo_id: item.moId,
             updated_at: new Date(),
           },
         })
@@ -181,6 +183,56 @@ router.post('/reports/update-statuses', async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
+
+router.get('/reports/unique-periods', async (req, res) => {
+  try {
+    // достаем все отчёты
+    const reports = await prisma.reports.findMany({
+      orderBy: { reporting_period_start_date: 'desc' },
+    });
+
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ message: 'Отчёты не найдены' });
+    }
+
+    // получаем пользователей одним запросом (если у тебя есть таблица users)
+    const users = await prisma.users.findMany({
+      select: { id: true, full_name: true },
+    });
+
+    // сокращение ФИО
+    const shortenFullName = (fullName) => {
+      if (!fullName) return '';
+      const parts = fullName.split(' ');
+      if (parts.length < 2) return fullName;
+      return `${parts[0]} ${parts[1][0]}.`;
+    };
+
+    // мапим уникальные периоды
+    const uniquePeriodsMap = new Map();
+
+    reports.forEach((report) => {
+      const key = `${report.reporting_period_start_date}_${report.reporting_period_end_date}`;
+      if (!uniquePeriodsMap.has(key)) {
+        const user = users.find((u) => u.id === report.created_by);
+
+        uniquePeriodsMap.set(key, {
+          reporting_period_start_date: report.reporting_period_start_date,
+          reporting_period_end_date: report.reporting_period_end_date,
+          userName: shortenFullName(user?.full_name),
+          createdAt: report.created_at,
+          reports: [], // пока пусто
+        });
+      }
+    });
+
+    res.json(Array.from(uniquePeriodsMap.values()));
+  } catch (error) {
+    console.error('❌ Ошибка при получении уникальных отчётов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 
 
 
