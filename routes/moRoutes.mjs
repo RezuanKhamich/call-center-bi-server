@@ -64,13 +64,6 @@ router.get('/reports-by-date', async (req, res) => {
         ...where,
         NOT: { mo_id: Number(mo_id) },
       },
-      select: {
-        id: true, // чтобы было уникальное поле в массиве
-        department: true,
-        created_at: true,
-        agency_type: true,
-        status: true,
-      },
       orderBy: [
         { reporting_period_end_date: 'desc' },
         { reporting_period_start_date: 'desc' },

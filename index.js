@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.mjs';
 import moderatorRoutes from './routes/moderatorRoutes.mjs';
 import moRoutes from './routes/moRoutes.mjs';
 import ministerRoutes from './routes/ministerRoutes.mjs';
+import agecyModeratorRoutes from './routes/agencyModeratorRoutes.mjs';
 import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 
@@ -23,6 +24,7 @@ app.get('/api', (req, res) => {
 
 app.use('/api', authRoutes);
 app.use('/api/moderator', moderatorRoutes);
+app.use('/api/agency-moderator', agecyModeratorRoutes);
 app.use('/api/mo', moRoutes);
 app.use('/api/minister', ministerRoutes);
 

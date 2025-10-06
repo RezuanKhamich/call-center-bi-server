@@ -99,6 +99,7 @@ router.post('/login', async (req, res) => {
       email: user.email,
       role: user.role,
       moId: user.mo_id,
+      agencyType: user.agency_type,
       fullName: user.full_name,
       lastLogin: now,
       passwordCreatedAt: user.password_created_at,
