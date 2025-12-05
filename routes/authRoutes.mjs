@@ -72,12 +72,13 @@ router.post('/login', async (req, res) => {
     },
   })
 
-  const passwordAgeDays =
-    (now.getTime() - new Date(user.password_created_at || user.last_login || 0).getTime()) / (1000 * 60 * 60 * 24)
+  // Вернуть после добавления сброса пароля
+  // const passwordAgeDays =
+  //   (now.getTime() - new Date(user.password_created_at || user.last_login || 0).getTime()) / (1000 * 60 * 60 * 24)
 
-  if (passwordAgeDays > 90) {
-    return res.status(403).json({ message: 'Пароль устарел. Требуется ввести новый пароль.' })
-  }
+  // if (passwordAgeDays > 90) {
+  //   return res.status(403).json({ message: 'Пароль устарел. Требуется ввести новый пароль.' })
+  // }
 
   const token = jwt.sign(
     {
