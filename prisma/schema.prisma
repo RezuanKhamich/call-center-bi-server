@@ -66,4 +66,17 @@ model users {
 
   reports_reports_created_byTousers reports[] @relation("reports_created_byTousers")
   reports_reports_updated_byTousers reports[] @relation("reports_updated_byTousers")
+
+  user_activity user_activity[]
+}
+
+model user_activity {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  action     String
+  created_at DateTime @default(now())
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
 }

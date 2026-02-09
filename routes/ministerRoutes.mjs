@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateJWT, authorizeRoles } from '../middleware/authMiddleware.mjs';
 import { PrismaClient } from '@prisma/client';
+import { getActivitySummary, groupByDate } from '../utils/helpers.mjs';
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -76,6 +77,48 @@ router.get('/get-users', async (req, res) => {
   } catch (error) {
     console.error('❌ Ошибка получения пользователей:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+router.get('/activity/summary/week', async (req, res) => {
+  try {
+    const to = new Date();
+    const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const rows = await getActivitySummary({ prisma, from, to });
+
+    res.json(groupByDate(rows));
+  } catch (e) {
+    console.error('❌ activity week error', e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/activity/summary/month', async (req, res) => {
+  try {
+    const to = new Date();
+    const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const rows = await getActivitySummary({ prisma, from, to });
+
+    res.json(groupByDate(rows));
+  } catch (e) {
+    console.error('❌ activity month error', e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/activity/summary/90days', async (req, res) => {
+  try {
+    const to = new Date();
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+    const rows = await getActivitySummary({ prisma, from, to });
+
+    res.json(groupByDate(rows));
+  } catch (e) {
+    console.error('❌ activity 90days error', e);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

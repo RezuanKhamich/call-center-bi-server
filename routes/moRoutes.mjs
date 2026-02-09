@@ -1,17 +1,18 @@
 import express from 'express';
 import { authenticateJWT, authorizeRoles } from '../middleware/authMiddleware.mjs';
 import { PrismaClient } from '@prisma/client';
+import { trackMoActivity } from '../middleware/trackActivity.mjs';
 
 const prisma = new PrismaClient();
 const router = express.Router();
 router.use(authenticateJWT, authorizeRoles('mo'));
 
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', trackMoActivity('view_dashboard'), (req, res) => {
   res.json({ message: 'MO dashboard' });
 });
 
 // GET /api/mo — получить список медорганизаций
-router.get('/get-mo-list', async (req, res) => {
+router.get('/get-mo-list', trackMoActivity('get-mo-list'), async (req, res) => {
   try {
     const organizations = await prisma.med_organizations.findMany({
       orderBy: { name: 'asc' }, // сортировка по названию
@@ -24,7 +25,7 @@ router.get('/get-mo-list', async (req, res) => {
   }
 })
 
-router.get('/reports-by-date', async (req, res) => {
+router.get('/reports-by-date', trackMoActivity('reports-by-date'), async (req, res) => {
   try {
     const {
       reporting_period_start_date,
@@ -78,7 +79,7 @@ router.get('/reports-by-date', async (req, res) => {
   }
 });
 
-router.get('/get-users', async (req, res) => {
+router.get('/get-users', trackMoActivity('get-users'), async (req, res) => {
   try {
     const users = await prisma.users.findMany({
       select: {
