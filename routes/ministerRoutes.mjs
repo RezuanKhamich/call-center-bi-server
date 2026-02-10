@@ -34,16 +34,22 @@ router.get('/reports-by-date', async (req, res) => {
 
     const where = {};
 
-    if (reporting_period_start_date) {
-      where.reporting_period_start_date = {
-        gte: new Date(reporting_period_start_date),
-      };
-    }
+    if (reporting_period_start_date && reporting_period_end_date) {
+      const from = new Date(reporting_period_start_date);
+      const to = new Date(reporting_period_end_date);
 
-    if (reporting_period_end_date) {
-      where.reporting_period_end_date = {
-        lte: new Date(reporting_period_end_date),
-      };
+      where.AND = [
+        {
+          reporting_period_start_date: {
+            lte: to, // начало отчёта <= конец фильтра
+          },
+        },
+        {
+          reporting_period_end_date: {
+            gte: from, // конец отчёта >= начало фильтра
+          },
+        },
+      ];
     }
 
     const reports = await prisma.reports.findMany({
@@ -56,7 +62,7 @@ router.get('/reports-by-date', async (req, res) => {
 
     res.json(reports);
   } catch (error) {
-    console.error('❌ Ошибка получения отчетов по диапазону и типу:', error);
+    console.error('❌ Ошибка получения отчетов по диапазону:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

@@ -25,59 +25,80 @@ router.get('/get-mo-list', trackMoActivity('get-mo-list'), async (req, res) => {
   }
 })
 
-router.get('/reports-by-date', trackMoActivity('reports-by-date'), async (req, res) => {
-  try {
-    const {
-      reporting_period_start_date,
-      reporting_period_end_date,
-      mo_id,
-    } = req.query;
+router.get(
+  '/reports-by-date',
+  trackMoActivity('reports-by-date'),
+  async (req, res) => {
+    try {
+      const {
+        reporting_period_start_date,
+        reporting_period_end_date,
+        mo_id,
+      } = req.query;
 
-    const where = {};
+      const where = {};
 
-    if (reporting_period_start_date) {
-      where.reporting_period_start_date = {
-        gte: new Date(reporting_period_start_date),
-      };
+      // 🧠 ЛОГИКА ПЕРЕСЕЧЕНИЯ ПЕРИОДОВ
+      if (reporting_period_start_date && reporting_period_end_date) {
+        const from = new Date(reporting_period_start_date);
+        const to = new Date(reporting_period_end_date);
+
+        where.AND = [
+          {
+            reporting_period_start_date: {
+              lte: to,
+            },
+          },
+          {
+            reporting_period_end_date: {
+              gte: from,
+            },
+          },
+        ];
+      }
+
+      const moId = Number(mo_id);
+
+      // ✅ 1. Отчёты выбранной МО — ВСЕ ПОЛЯ
+      const selectedMoReports = await prisma.reports.findMany({
+        where: {
+          ...where,
+          mo_id: moId,
+        },
+        orderBy: [
+          { reporting_period_end_date: 'desc' },
+          { reporting_period_start_date: 'desc' },
+        ],
+      });
+
+      // 🚫 2. Отчёты остальных МО — ОГРАНИЧЕННЫЕ ПОЛЯ
+      const otherMoReports = await prisma.reports.findMany({
+        where: {
+          ...where,
+          NOT: { mo_id: moId },
+        },
+        select: {
+          id: true,
+          department: true,
+          status: true,
+          reporting_period_start_date: true,
+          reporting_period_end_date: true,
+          mo_id: true,
+        },
+        orderBy: [
+          { reporting_period_end_date: 'desc' },
+          { reporting_period_start_date: 'desc' },
+        ],
+      });
+
+      res.json([...selectedMoReports, ...otherMoReports]);
+    } catch (error) {
+      console.error('❌ Ошибка получения отчетов по диапазону и МО:', error);
+      res.status(500).json({ message: 'Ошибка сервера' });
     }
-
-    if (reporting_period_end_date) {
-      where.reporting_period_end_date = {
-        lte: new Date(reporting_period_end_date),
-      };
-    }
-
-    // Для выбранной МО — все поля
-    const selectedMoReports = await prisma.reports.findMany({
-      where: {
-        ...where,
-        mo_id: Number(mo_id),
-      },
-      orderBy: [
-        { reporting_period_end_date: 'desc' },
-        { reporting_period_start_date: 'desc' },
-      ],
-    });
-
-    // Для остальных МО — только department и status
-    const otherMoReports = await prisma.reports.findMany({
-      where: {
-        ...where,
-        NOT: { mo_id: Number(mo_id) },
-      },
-      orderBy: [
-        { reporting_period_end_date: 'desc' },
-        { reporting_period_start_date: 'desc' },
-      ],
-    });
-    const reports = [ ...selectedMoReports, ...otherMoReports ]
-
-    res.json(reports);
-  } catch (error) {
-    console.error('❌ Ошибка получения отчетов по диапазону и МО:', error);
-    res.status(500).json({ message: 'Ошибка сервера' });
   }
-});
+);
+
 
 router.get('/get-users', trackMoActivity('get-users'), async (req, res) => {
   try {
