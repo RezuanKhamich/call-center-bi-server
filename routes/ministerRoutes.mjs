@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateJWT, authorizeRoles } from '../middleware/authMiddleware.mjs';
 import { PrismaClient } from '@prisma/client';
-import { getActivitySummary, groupByDate } from '../utils/helpers.mjs';
+import { getActivitySummary, groupByDate, groupByHour } from '../utils/helpers.mjs';
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -86,12 +86,40 @@ router.get('/get-users', async (req, res) => {
   }
 });
 
+router.get('/activity/summary/day', async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: 'Date is required' });
+    }
+
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    const rows = await getActivitySummary({
+      prisma,
+      from: start,
+      to: end,
+      granularity: 'hour', // ключевое отличие
+    });
+
+    res.json(groupByHour(rows));
+  } catch (e) {
+    console.error('❌ activity day error', e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.get('/activity/summary/week', async (req, res) => {
   try {
     const to = new Date();
     const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const rows = await getActivitySummary({ prisma, from, to });
+    const rows = await getActivitySummary({ prisma, from, to, granularity: 'day' });
 
     res.json(groupByDate(rows));
   } catch (e) {
@@ -105,7 +133,7 @@ router.get('/activity/summary/month', async (req, res) => {
     const to = new Date();
     const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const rows = await getActivitySummary({ prisma, from, to });
+    const rows = await getActivitySummary({ prisma, from, to, granularity: 'day' });
 
     res.json(groupByDate(rows));
   } catch (e) {
@@ -119,7 +147,7 @@ router.get('/activity/summary/90days', async (req, res) => {
     const to = new Date();
     const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
-    const rows = await getActivitySummary({ prisma, from, to });
+    const rows = await getActivitySummary({ prisma, from, to, granularity: 'day' });
 
     res.json(groupByDate(rows));
   } catch (e) {
