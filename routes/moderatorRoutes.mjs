@@ -37,25 +37,19 @@ router.get('/reports-by-date', async (req, res) => {
       const from = new Date(reporting_period_start_date);
       const to = new Date(reporting_period_end_date);
 
-      where.AND = [
-        {
-          reporting_period_start_date: {
-            lte: to, // начало отчёта <= конец фильтра
-          },
-        },
-        {
-          reporting_period_end_date: {
-            gte: from, // конец отчёта >= начало фильтра
-          },
-        },
-      ];
+      // Если хочешь включительно до конца дня (на всякий случай)
+      to.setHours(23, 59, 59, 999);
+
+      where.appeal_date = {
+        gte: from,
+        lte: to,
+      };
     }
 
     const reports = await prisma.reports.findMany({
       where,
       orderBy: [
-        { reporting_period_end_date: 'desc' },
-        { reporting_period_start_date: 'desc' },
+        { appeal_date: 'desc' }, // логичнее сортировать по дате обращения
       ],
     });
 

@@ -38,62 +38,63 @@ router.get(
 
       const where = {};
 
-      // 🧠 ЛОГИКА ПЕРЕСЕЧЕНИЯ ПЕРИОДОВ
-      if (reporting_period_start_date && reporting_period_end_date) {
-        const from = new Date(reporting_period_start_date);
-        const to = new Date(reporting_period_end_date);
+      /* ------------------------------ */
+      /* 📅 Фильтр по appeal_date      */
+      /* ------------------------------ */
 
-        where.AND = [
-          {
-            reporting_period_start_date: {
-              lte: to,
-            },
-          },
-          {
-            reporting_period_end_date: {
-              gte: from,
-            },
-          },
-        ];
+      if (reporting_period_start_date || reporting_period_end_date) {
+        where.appeal_date = {};
+
+        if (reporting_period_start_date) {
+          const from = new Date(reporting_period_start_date);
+          from.setHours(0, 0, 0, 0);
+          where.appeal_date.gte = from;
+        }
+
+        if (reporting_period_end_date) {
+          const to = new Date(reporting_period_end_date);
+          to.setHours(23, 59, 59, 999);
+          where.appeal_date.lte = to;
+        }
       }
 
       const moId = Number(mo_id);
 
-      // ✅ 1. Отчёты выбранной МО — ВСЕ ПОЛЯ
-      const selectedMoReports = await prisma.reports.findMany({
-        where: {
-          ...where,
-          mo_id: moId,
-        },
-        orderBy: [
-          { reporting_period_end_date: 'desc' },
-          { reporting_period_start_date: 'desc' },
-        ],
+      if (Number.isNaN(moId)) {
+        return res.status(400).json({ message: 'Invalid mo_id' });
+      }
+
+      /* ------------------------------ */
+      /* 🚀 Один запрос к БД           */
+      /* ------------------------------ */
+
+      const reports = await prisma.reports.findMany({
+        where,
+        orderBy: [{ appeal_date: 'desc' }],
       });
 
-      // 🚫 2. Отчёты остальных МО — ОГРАНИЧЕННЫЕ ПОЛЯ
-      const otherMoReports = await prisma.reports.findMany({
-        where: {
-          ...where,
-          NOT: { mo_id: moId },
-        },
-        select: {
-          id: true,
-          department: true,
-          status: true,
-          reporting_period_start_date: true,
-          reporting_period_end_date: true,
-          mo_id: true,
-        },
-        orderBy: [
-          { reporting_period_end_date: 'desc' },
-          { reporting_period_start_date: 'desc' },
-        ],
-      });
+      /* ------------------------------ */
+      /* 🔎 Разделение в памяти        */
+      /* ------------------------------ */
+
+      const selectedMoReports = reports.filter(
+        (r) => r.mo_id === moId
+      );
+
+      const otherMoReports = reports
+        .filter((r) => r.mo_id !== moId)
+        .map(({ id, department, status, appeal_date, mo_id }) => ({
+          id,
+          department,
+          status,
+          appeal_date,
+          mo_id,
+        }));
 
       res.json([...selectedMoReports, ...otherMoReports]);
+
     } catch (error) {
-      console.error('❌ Ошибка получения отчетов по диапазону и МО:', error);
+      console.error('❌ Ошибка получения отчетов:', error);
       res.status(500).json({ message: 'Ошибка сервера' });
     }
   }

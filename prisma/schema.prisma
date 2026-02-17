@@ -11,6 +11,7 @@ model med_organizations {
   id      Int      @id @default(autoincrement())
   name    String   @unique
   reports reports[]
+  users   users[]
 }
 
 model password_reset_tokens {
@@ -63,6 +64,7 @@ model users {
   password_created_at               DateTime? @default(now()) @db.Timestamp(6)
   last_login                        DateTime? @db.Timestamp(6)
   password_reset_tokens             password_reset_tokens[]
+  med_organization  med_organizations? @relation(fields: [mo_id], references: [id])
 
   reports_reports_created_byTousers reports[] @relation("reports_created_byTousers")
   reports_reports_updated_byTousers reports[] @relation("reports_updated_byTousers")

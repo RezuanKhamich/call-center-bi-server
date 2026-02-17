@@ -38,25 +38,19 @@ router.get('/reports-by-date', async (req, res) => {
       const from = new Date(reporting_period_start_date);
       const to = new Date(reporting_period_end_date);
 
-      where.AND = [
-        {
-          reporting_period_start_date: {
-            lte: to, // начало отчёта <= конец фильтра
-          },
-        },
-        {
-          reporting_period_end_date: {
-            gte: from, // конец отчёта >= начало фильтра
-          },
-        },
-      ];
+      // Если хочешь включительно до конца дня (на всякий случай)
+      to.setHours(23, 59, 59, 999);
+
+      where.appeal_date = {
+        gte: from,
+        lte: to,
+      };
     }
 
     const reports = await prisma.reports.findMany({
       where,
       orderBy: [
-        { reporting_period_end_date: 'desc' },
-        { reporting_period_start_date: 'desc' },
+        { appeal_date: 'desc' }, // логичнее сортировать по дате обращения
       ],
     });
 
@@ -155,5 +149,49 @@ router.get('/activity/summary/90days', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+router.get('/mo-users', async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      where: {
+        role: 'mo',
+        mo_id: { not: null },
+      },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        mo_id: true,
+        med_organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        user_activity: {
+          orderBy: { created_at: 'desc' },
+          take: 1,
+          select: {
+            created_at: true,
+          },
+        },
+      },
+      orderBy: {
+        full_name: 'asc',
+      },
+    });
+
+    const result = users.map((u) => ({
+      ...u,
+      last_activity: u.user_activity[0]?.created_at || null,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Ошибка получения пользователей МО:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 
 export default router;
