@@ -36,7 +36,9 @@ router.get('/reports-by-date', async (req, res) => {
     if (reporting_period_start_date && reporting_period_end_date) {
       const from = new Date(reporting_period_start_date);
       const to = new Date(reporting_period_end_date);
-
+      from.setUTCHours(0, 0, 0, 0);
+      to.setUTCHours(0, 0, 0, 0);
+      
       where.AND = [
         {
           reporting_period_start_date: {

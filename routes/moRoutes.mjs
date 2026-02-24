@@ -47,13 +47,13 @@ router.get(
 
         if (reporting_period_start_date) {
           const from = new Date(reporting_period_start_date);
-          from.setHours(0, 0, 0, 0);
+          from.setUTCHours(0, 0, 0, 0);
           where.appeal_date.gte = from;
         }
 
         if (reporting_period_end_date) {
           const to = new Date(reporting_period_end_date);
-          to.setHours(23, 59, 59, 999);
+          to.setUTCHours(0, 0, 0, 0);
           where.appeal_date.lte = to;
         }
       }
