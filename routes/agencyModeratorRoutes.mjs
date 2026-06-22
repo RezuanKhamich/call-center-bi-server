@@ -123,21 +123,27 @@ router.get('/get-users', async (req, res) => {
 });
 
 router.delete('/delete-reports-by-date', async (req, res) => {
-  const { date } = req.body; // ожидаем: { date: "2025-07-19T00:00:00.000Z" }
+  const { createdAt } = req.body; // ожидаем: { createdAt: "2026-06-22T12:27:11.207Z" }
 
-  if (!date) {
-    return res.status(400).json({ message: 'Не указана дата' });
+  if (!createdAt) {
+    return res.status(400).json({ message: 'Не указан момент публикации' });
   }
 
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
+  const fromMs = new Date(createdAt).getTime();
+  if (isNaN(fromMs)) {
     return res.status(400).json({ message: 'Некорректный формат даты' });
   }
 
   try {
+    // удаляем только отчёты конкретной публикации (по точному created_at),
+    // а не все отчёты с тем же периодом — иначе при нескольких публикациях
+    // за один период удалится сразу всё
     const deleted = await prisma.reports.deleteMany({
       where: {
-        reporting_period_start_date: parsedDate,
+        created_at: {
+          gte: new Date(fromMs),
+          lt: new Date(fromMs + 1),
+        },
       },
     });
 
@@ -195,7 +201,7 @@ router.get('/reports/unique-periods', async (req, res) => {
   try {
     // достаем все отчёты
     const reports = await prisma.reports.findMany({
-      orderBy: { reporting_period_start_date: 'desc' },
+      orderBy: { created_at: 'desc' },
     });
 
     if (!reports || reports.length === 0) {
@@ -215,15 +221,17 @@ router.get('/reports/unique-periods', async (req, res) => {
       return `${parts[0]} ${parts[1][0]}.`;
     };
 
-    // мапим уникальные периоды
-    const uniquePeriodsMap = new Map();
+    // группируем отчёты по моменту загрузки (отчёты одной загрузки создаются
+    // одним запросом и имеют одинаковый created_at), а не по периоду —
+    // иначе несколько загрузок за один и тот же период "съедали" друг друга
+    const uploadsMap = new Map();
 
     reports.forEach((report) => {
-      const key = `${report.reporting_period_start_date}_${report.reporting_period_end_date}`;
-      if (!uniquePeriodsMap.has(key)) {
+      const key = `${new Date(report.created_at).getTime()}`;
+      if (!uploadsMap.has(key)) {
         const user = users.find((u) => u.id === report.created_by);
 
-        uniquePeriodsMap.set(key, {
+        uploadsMap.set(key, {
           reporting_period_start_date: report.reporting_period_start_date,
           reporting_period_end_date: report.reporting_period_end_date,
           userName: shortenFullName(user?.full_name),
@@ -233,7 +241,7 @@ router.get('/reports/unique-periods', async (req, res) => {
       }
     });
 
-    res.json(Array.from(uniquePeriodsMap.values()));
+    res.json(Array.from(uploadsMap.values()));
   } catch (error) {
     console.error('❌ Ошибка при получении уникальных отчётов:', error);
     res.status(500).json({ message: 'Ошибка сервера' });

@@ -117,21 +117,27 @@ router.get('/get-users', async (req, res) => {
 });
 
 router.delete('/delete-reports-by-date', async (req, res) => {
-  const { date } = req.body; // ожидаем: { date: "2025-07-19T00:00:00.000Z" }
+  const { createdAt } = req.body; // ожидаем: { createdAt: "2026-06-22T12:27:11.207Z" }
 
-  if (!date) {
-    return res.status(400).json({ message: 'Не указана дата' });
+  if (!createdAt) {
+    return res.status(400).json({ message: 'Не указан момент публикации' });
   }
 
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
+  const fromMs = new Date(createdAt).getTime();
+  if (isNaN(fromMs)) {
     return res.status(400).json({ message: 'Некорректный формат даты' });
   }
 
   try {
+    // удаляем только отчёты конкретной публикации (по точному created_at),
+    // а не все отчёты с тем же периодом — иначе при нескольких публикациях
+    // за один период удалится сразу всё
     const deleted = await prisma.reports.deleteMany({
       where: {
-        reporting_period_start_date: parsedDate,
+        created_at: {
+          gte: new Date(fromMs),
+          lt: new Date(fromMs + 1),
+        },
       },
     });
 
@@ -185,18 +191,101 @@ router.post('/reports/update-reports', async (req, res) => {
   }
 });
 
+router.post('/reports/upload', async (req, res) => {
+  const { reports, agencyType, reportingPeriodStartDate, reportingPeriodEndDate } = req.body;
+
+  const userId = req.user.id;
+
+  try {
+
+    const upload = await prisma.report_uploads.create({
+      data: {
+        created_by: userId,
+        agencies: [agencyType],
+        reporting_period_start_date: reportingPeriodStartDate,
+        reporting_period_end_date: reportingPeriodEndDate,
+      }
+    });
+
+    await prisma.reports.createMany({
+      data: reports.map(r => ({
+        full_name: r.fullName,
+        appeal_date: new Date(r.appealDate),
+        appeal_type: r.appealType,
+        department: r.department,
+        subject: r.subject,
+        description: r.description,
+        route: r.route,
+        status: r.status,
+        mo_id: r.moId,
+        agency_type: agencyType,
+        upload_id: upload.id,
+        created_by: userId
+      }))
+    });
+
+    res.json({ message: 'Отчет успешно загружен' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+router.get('/reports/history', async (req, res) => {
+
+  const uploads = await prisma.report_uploads.findMany({
+    orderBy: { created_at: 'desc' },
+    include: {
+      user: {
+        select: {
+          full_name: true
+        }
+      },
+      reports: {
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  res.json(uploads);
+});
+
+router.delete('/reports/upload/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.reports.deleteMany({
+      where: { upload_id: Number(id) },
+    });
+
+    await prisma.report_uploads.delete({
+      where: { id: Number(id) },
+    });
+
+    res.json({
+      message: 'Загрузка отчета удалена',
+    });
+  } catch (error) {
+    console.error('❌ Ошибка удаления загрузки:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 router.get('/reports/unique-periods', async (req, res) => {
   try {
-    // достаем все отчёты
+    // публикация отчётов (POST /reports) пишет напрямую в таблицу reports
+    // и не создаёт записей в report_uploads, поэтому историю строим из reports
     const reports = await prisma.reports.findMany({
-      orderBy: { reporting_period_start_date: 'desc' },
+      orderBy: { created_at: 'desc' },
     });
 
     if (!reports || reports.length === 0) {
       return res.status(404).json({ message: 'Отчёты не найдены' });
     }
 
-    // получаем пользователей одним запросом (если у тебя есть таблица users)
     const users = await prisma.users.findMany({
       select: { id: true, full_name: true },
     });
@@ -209,27 +298,36 @@ router.get('/reports/unique-periods', async (req, res) => {
       return `${parts[0]} ${parts[1][0]}.`;
     };
 
-    // мапим уникальные периоды
-    const uniquePeriodsMap = new Map();
+    // группируем отчёты по моменту публикации (отчёты одной публикации
+    // создаются одним запросом и имеют одинаковый created_at)
+    const uploadsMap = new Map();
 
     reports.forEach((report) => {
-      const key = `${report.reporting_period_start_date}_${report.reporting_period_end_date}`;
-      if (!uniquePeriodsMap.has(key)) {
+      const key = `${new Date(report.created_at).getTime()}`;
+      if (!uploadsMap.has(key)) {
         const user = users.find((u) => u.id === report.created_by);
 
-        uniquePeriodsMap.set(key, {
+        uploadsMap.set(key, {
+          id: key,
           reporting_period_start_date: report.reporting_period_start_date,
           reporting_period_end_date: report.reporting_period_end_date,
+          agencies: [],
           userName: shortenFullName(user?.full_name),
           createdAt: report.created_at,
-          reports: [], // пока пусто
+          reportsCount: 0,
         });
+      }
+
+      const entry = uploadsMap.get(key);
+      entry.reportsCount += 1;
+      if (report.agency_type && !entry.agencies.includes(report.agency_type)) {
+        entry.agencies.push(report.agency_type);
       }
     });
 
-    res.json(Array.from(uniquePeriodsMap.values()));
+    res.json(Array.from(uploadsMap.values()));
   } catch (error) {
-    console.error('❌ Ошибка при получении уникальных отчётов:', error);
+    console.error('❌ Ошибка при получении истории загрузок:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

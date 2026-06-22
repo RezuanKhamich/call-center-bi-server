@@ -31,6 +31,9 @@ model reports {
   created_by                       Int?
   updated_by                       Int?
 
+  upload_id Int?
+  upload report_uploads? @relation(fields: [upload_id], references: [id])
+
   full_name                        String
   appeal_date                      DateTime  @db.Date         // Точная дата обращения
   reporting_period_start_date      DateTime? @db.Date         // Начало недели
@@ -49,6 +52,23 @@ model reports {
 
   users_reports_created_byTousers users?   @relation("reports_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users_reports_updated_byTousers users?   @relation("reports_updated_byTousers", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model report_uploads {
+  id                Int       @id @default(autoincrement())
+  created_at        DateTime  @default(now())
+  created_by        Int
+
+  reporting_period_start_date DateTime? @db.Date
+  reporting_period_end_date   DateTime? @db.Date
+
+  agencies          String[]  // ["callCenter", "secretary"]
+
+  reports           reports[]
+
+  user users @relation(fields: [created_by], references: [id])
+
+  @@index([created_at])
 }
 
 model users {
@@ -70,6 +90,7 @@ model users {
   reports_reports_updated_byTousers reports[] @relation("reports_updated_byTousers")
 
   user_activity user_activity[]
+  report_uploads report_uploads[]
 }
 
 model user_activity {
